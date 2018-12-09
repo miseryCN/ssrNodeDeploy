@@ -51,7 +51,7 @@ class RemoteSSH():
     def execute(self,remark,host,port,password,dbHost,dbPassword,dbName,nodeID):
         if not self.checkConfig(remark,host,port,password,dbHost,dbPassword,dbName,nodeID):
             print(remark,"ERROR 节点信息不全!")
-            input("按回车键退出...")
+            input(self.set.tip)
             return
 
         print(remark,"start 开始部署...")
@@ -59,7 +59,7 @@ class RemoteSSH():
             int(port),int(nodeID)
         except ValueError:
             print(remark,"ERROR ssh端口或node_id只能是数字!")
-            input("按回车结束...")
+            input(self.set.tip)
             return
         mysql_config_path = self.workPath+host+"_user_mysql.json"
         with open(mysql_config_path,"w",encoding="utf-8") as configFile:
@@ -72,17 +72,17 @@ class RemoteSSH():
         except ssh_exception.NoValidConnectionsError:
             print(remark,"ERROR 错误的端口!")
             remove(mysql_config_path)
-            input("按回车结束...")
+            input(self.set.tip)
             return
         except ssh_exception.AuthenticationException:
             print(remark,"ERROR 身份认证失败!")
             remove(mysql_config_path)
-            input("按回车结束...")
+            input(self.set.tip)
             return
         except TimeoutError:
             print(remark,"ERROR 节点连接超时!")
             remove(mysql_config_path)
-            input("按回车结束...")
+            input(self.set.tip)
             return
         print(remark,"success 节点连接成功!")
         print(remark,"waiting 正在执行安装,请等待5-10分钟...")

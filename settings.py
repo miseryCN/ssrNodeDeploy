@@ -7,6 +7,7 @@ class Settings():
         self.ps_cmd = "ps -ef | grep \"[s]erver.py m\""
         self.auto_start_cmd = "echo \"cd shadowsocksr && ./logrun.sh\" >> /etc/rc.local"
         self.rc_chmod = "chmod +x /etc/rc.d/rc.local"
+        self.tip = "按回车退出..."
 
         self.cmdList = [
             "yum -y install wget git vim",
