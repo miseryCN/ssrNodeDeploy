@@ -72,14 +72,17 @@ class RemoteSSH():
         except ssh_exception.NoValidConnectionsError:
             print(remark,"ERROR 错误的端口!")
             remove(mysql_config_path)
+            input("按回车结束...")
             return
         except ssh_exception.AuthenticationException:
             print(remark,"ERROR 身份认证失败!")
             remove(mysql_config_path)
+            input("按回车结束...")
             return
         except TimeoutError:
             print(remark,"ERROR 节点连接超时!")
             remove(mysql_config_path)
+            input("按回车结束...")
             return
         print(remark,"success 节点连接成功!")
         print(remark,"waiting 正在执行安装,请等待5-10分钟...")
@@ -102,6 +105,3 @@ class RemoteSSH():
         else:
             print(remark,"FAIL 节点未运行,请登陆服务器查看！")
         ssh.close()
-
-remote = RemoteSSH()
-remote.deploy()
