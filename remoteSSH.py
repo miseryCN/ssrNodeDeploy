@@ -102,6 +102,3 @@ class RemoteSSH():
         else:
             print(remark,"FAIL 节点未运行,请登陆服务器查看！")
         ssh.close()
-
-remote = RemoteSSH()
-remote.deploy()
