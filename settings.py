@@ -3,12 +3,27 @@
 class Settings():
     def __init__(self):
         self.username = "root"
+        self.result = "result.txt"
         self.server_user_config_path = "/root/shadowsocksr/usermysql.json"
         self.ps_cmd = "ps -ef | grep \"[s]erver.py m\""
         self.auto_start_cmd = "echo \"cd shadowsocksr && ./logrun.sh\" >> /etc/rc.local"
         self.rc_chmod = "chmod +x /etc/rc.d/rc.local"
-        self.tip = "按回车退出..."
+        self.start = "start 开始部署..."
+        self.error_info = "ERROR 节点信息不全!"
+        self.error_value = "ERROR ssh端口或node_id只能是数字!"
+        self.connect = "waiting 正在连接节点..."
+        self.error_port = "ERROR 错误的端口或地址!"
+        self.error_pass = "ERROR 身份认证失败!"
+        self.error_timeout = "ERROR 节点连接超时!"
+        self.success_connect = "success 节点连接成功!"
+        self.deploying = "waiting 正在执行安装,请等待5-10分钟..."
+        self.success_deploy = "success 节点已启动,并加入开机启动..."
+        self.error_deploy = "FAIL 节点未运行,请登陆服务器查看！"
+        self.config_not_found = "ERROR 未在当前目录下找到配置文件","servers.csv","请手动输入配置信息..."
 
+        self.tip = "\n\n\n程序运行结束,结果如下(已写入result.txt):\n\n"
+        self.end = "\n按回车结束..."
+        self.log_run = "cd shadowsocksr && ./logrun.sh"
         self.cmdList = [
             "yum -y install wget git vim",
             "ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime",

@@ -1,26 +1,42 @@
 from paramiko import SSHClient,AutoAddPolicy,ssh_exception,Transport,SFTPClient
 from settings import Settings
-import csv
+from queue import Queue
 from json import dump
 from threading import Thread
-from os import remove,getcwd
+from os import remove,getcwd,path
+from excelReader import readExcel
+
+
 
 class RemoteSSH():
     def __init__(self):
         self.set = Settings()
+        self.que = Queue()
+        self.threadList = []
         self.workPath = getcwd() + "/"
-        self.servers_config_path = self.workPath+"servers.csv"
+        self.resultPath = self.workPath+self.set.result
+        if path.exists(self.resultPath):
+            remove(self.resultPath)
+        if path.exists(self.workPath+"servers.xlsx"):
+            self.servers_config_path = self.workPath + "servers.xlsx"
+        elif path.exists(self.workPath+"servers.xls"):
+            self.servers_config_path = self.workPath + "servers.xlsx"
+        else:
+            self.servers_config_path = ""
 
 
     def deploy(self):
-        self.servers = self.readConfig()
+        self.servers = readExcel(self.servers_config_path)
         if isinstance(self.servers,list):
-            print("在配置文件中找到",len(self.servers)-1,"个节点...")
-            for server in self.servers[1:]:
-                server = tuple(server[1:])
-                Thread(target=self.execute,args=server).start()
+            print("在配置文件中找到",len(self.servers),"个节点...")
+            for server in self.servers:
+                server = tuple(server)
+                threadName = Thread(target=self.execute,args=server)
+                self.threadList.append(threadName)
+                threadName.start()
+            Thread(target=self.daemon_check).start()
         else:
-            print("ERROR 未在当前目录下找到配置文件","servers.csv","请手动输入配置信息...")
+            print(self.set.config_not_found)
             host = input("节点地址:")
             port = int(input("节点ssh端口:"))
             password = input("节点root密码:")
@@ -32,16 +48,25 @@ class RemoteSSH():
 
             self.execute(remark,host,port,password,dbHost,dbPassword,dbName,nodeID)
 
-    def readConfig(self):
-        try:
-            with open(self.servers_config_path) as f:
-                servers = list(csv.reader(f))
-                return servers
-        except FileNotFoundError:
-            return "No file"
 
 
-    def checkConfig(self,*args):
+    def daemon_check(self):
+        while True:
+            threadAorD = []
+            for thread in self.threadList:
+                threadAorD.append(thread.isAlive())
+            if True not in threadAorD and self.que.empty():
+                result = self.read_result()
+                input(result)
+                return
+            else:
+                if not self.que.empty():
+                    remark, host, info = self.que.get()
+                    with open(self.resultPath,"a",encoding="utf-8") as f:
+                        f.write(remark+" | "+host+": "+info+"\n")
+
+
+    def check_config(self,*args):
         for arg in args[1:]:
             if arg == "":
                 return False
@@ -49,17 +74,17 @@ class RemoteSSH():
 
 
     def execute(self,remark,host,port,password,dbHost,dbPassword,dbName,nodeID):
-        if not self.checkConfig(remark,host,port,password,dbHost,dbPassword,dbName,nodeID):
-            print(remark,"ERROR 节点信息不全!")
-            input(self.set.tip)
+        if not self.check_config(remark,host,port,password,dbHost,dbPassword,dbName,nodeID):
+            print(remark,self.set.error_info)
+            self.que.put((remark,host,self.set.error_info))
             return
 
-        print(remark,"start 开始部署...")
+        print(remark,self.set.start)
         try:
             int(port),int(nodeID)
         except ValueError:
-            print(remark,"ERROR ssh端口或node_id只能是数字!")
-            input(self.set.tip)
+            print(remark,self.set.error_value)
+            self.que.put((remark,host,self.set.error_value))
             return
         mysql_config_path = self.workPath+host+"_user_mysql.json"
         with open(mysql_config_path,"w",encoding="utf-8") as configFile:
@@ -67,25 +92,25 @@ class RemoteSSH():
         ssh = SSHClient()
         ssh.set_missing_host_key_policy(AutoAddPolicy())
         try:
-            print(remark,"waiting 正在连接节点...")
+            print(remark,self.set.connect)
             ssh.connect(host,int(port),self.set.username,password)
         except ssh_exception.NoValidConnectionsError:
-            print(remark,"ERROR 错误的端口!")
+            print(remark,self.set.error_port)
+            self.que.put((remark,host,self.set.error_port))
             remove(mysql_config_path)
-            input(self.set.tip)
             return
         except ssh_exception.AuthenticationException:
-            print(remark,"ERROR 身份认证失败!")
+            print(remark,self.set.error_pass)
+            self.que.put((remark,host,self.set.error_pass))
             remove(mysql_config_path)
-            input(self.set.tip)
             return
         except TimeoutError:
-            print(remark,"ERROR 节点连接超时!")
+            print(remark,self.set.error_timeout)
+            self.que.put((remark,host,self.set.error_timeout))
             remove(mysql_config_path)
-            input(self.set.tip)
             return
-        print(remark,"success 节点连接成功!")
-        print(remark,"waiting 正在执行安装,请等待5-10分钟...")
+        print(remark,self.set.success_connect)
+        print(remark,self.set.deploying)
         for cmd in self.set.cmdList:
             print(remark,cmd)
             console_in,console_out,console_error = ssh.exec_command(cmd)
@@ -94,14 +119,22 @@ class RemoteSSH():
         ftp.connect(username=self.set.username,password=password)
         sftp = SFTPClient.from_transport(ftp)
         sftp.put(mysql_config_path,self.set.server_user_config_path)
-        ssh.exec_command("cd shadowsocksr && ./logrun.sh")
+        ssh.exec_command(self.set.log_run)
         ssh.exec_command(self.set.auto_start_cmd)
         ssh.exec_command(self.set.rc_chmod)
         remove(mysql_config_path)
         result = ssh.exec_command(self.set.ps_cmd)[1].read().decode()
         #print(result)
         if result:
-            print(remark,"success 节点已启动,并加入开机启动...")
+            print(remark,self.set.success_deploy)
+            self.que.put((remark,host,self.set.success_deploy))
         else:
-            print(remark,"FAIL 节点未运行,请登陆服务器查看！")
+            print(remark,self.set.error_deploy)
+            self.que.put((remark,host,self.set.error_deploy))
         ssh.close()
+
+
+    def read_result(self):
+        with open(self.resultPath,"r",encoding="utf-8") as f:
+            text = f.read()
+            return self.set.tip+text
