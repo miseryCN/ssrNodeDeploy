@@ -137,4 +137,4 @@ class RemoteSSH():
     def read_result(self):
         with open(self.resultPath,"r",encoding="utf-8") as f:
             text = f.read()
-            return self.set.tip+text
+            return self.set.tip+text+self.set.end
