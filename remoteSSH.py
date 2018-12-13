@@ -86,9 +86,7 @@ class RemoteSSH():
             print(remark,self.set.error_value)
             self.que.put((remark,host,self.set.error_value))
             return
-        mysql_config_path = self.workPath+host+"_user_mysql.json"
-        with open(mysql_config_path,"w",encoding="utf-8") as configFile:
-            dump(self.set.generateUserMysqlFile(dbHost,dbPassword,dbName,nodeID),configFile)
+
         ssh = SSHClient()
         ssh.set_missing_host_key_policy(AutoAddPolicy())
         try:
@@ -97,34 +95,37 @@ class RemoteSSH():
         except ssh_exception.NoValidConnectionsError:
             print(remark,self.set.error_port)
             self.que.put((remark,host,self.set.error_port))
-            remove(mysql_config_path)
             return
         except ssh_exception.AuthenticationException:
             print(remark,self.set.error_pass)
             self.que.put((remark,host,self.set.error_pass))
-            remove(mysql_config_path)
             return
         except TimeoutError:
             print(remark,self.set.error_timeout)
             self.que.put((remark,host,self.set.error_timeout))
-            remove(mysql_config_path)
             return
+        except:
+            print(self.set.error_unknown)
+            self.que.put((remark,host,self.set.error_unknown))
         print(remark,self.set.success_connect)
         print(remark,self.set.deploying)
         for cmd in self.set.cmdList:
             print(remark,cmd)
+            print(self.set.wait_for_response)
             console_in,console_out,console_error = ssh.exec_command(cmd)
             print(console_out.read().decode(),console_error.read().decode())
         ftp = Transport((host,int(port)))
         ftp.connect(username=self.set.username,password=password)
         sftp = SFTPClient.from_transport(ftp)
+        mysql_config_path = self.workPath+host+"_user_mysql.json"
+        with open(mysql_config_path,"w",encoding="utf-8") as configFile:
+            dump(self.set.generateUserMysqlFile(dbHost,dbPassword,dbName,nodeID),configFile)
         sftp.put(mysql_config_path,self.set.server_user_config_path)
         ssh.exec_command(self.set.log_run)
         ssh.exec_command(self.set.auto_start_cmd)
         ssh.exec_command(self.set.rc_chmod)
         remove(mysql_config_path)
         result = ssh.exec_command(self.set.ps_cmd)[1].read().decode()
-        #print(result)
         if result:
             print(remark,self.set.success_deploy)
             self.que.put((remark,host,self.set.success_deploy))

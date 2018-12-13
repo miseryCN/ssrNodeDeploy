@@ -4,6 +4,8 @@ class Settings():
     def __init__(self):
         self.username = "root"
         self.result = "result.txt"
+        self.wait_for_response = "命令已发送,等待节点服务器反馈结果..."
+        self.error_unknown = "ERROR 未知错误"
         self.server_user_config_path = "/root/shadowsocksr/usermysql.json"
         self.ps_cmd = "ps -ef | grep \"[s]erver.py m\""
         self.auto_start_cmd = "echo \"cd shadowsocksr && ./logrun.sh\" >> /etc/rc.local"
